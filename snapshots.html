@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+
+    <h1>Active Lido Snapshot Proposals</h1>
+    <div id="data"></div>
+
+</body>
+
+<script>
+    function fillTable(data) {
+        var dataField = document.getElementById("data");
+        var html = ""
+        const proposals = data.data.proposals
+        proposals.forEach((proposal) => {
+            html += `<h2> - ${proposal.title}</h2>`
+            html += `<h3>Choices:</h3>`
+            for (var i = 0; i < proposal.choices.length; i++) {
+                html += `&ensp;<b>${proposal.choices[i]}:</b><br>`
+                html += `&emsp; - Votes: ${abbreviateNumber(proposal.scores[i])} LDO<br>`
+                html += `&emsp; - QD: ${abbreviateNumber(50000000 - proposal.scores[i])} LDO (${(5 - (proposal.scores[i] / 1000000000) * 100).toFixed(2)}%)<br>`
+            }
+        })
+        dataField.innerHTML = html
+    }
+
+    const SI_SYMBOL = ["", "k", "M", "G", "T", "P", "E"];
+
+    function abbreviateNumber(number) {
+        // what tier? (determines SI symbol)
+        const tier = (Math.log10(Math.abs(number)) / 3) | 0;
+
+        // if zero, we don't need a suffix
+        if (tier == 0) return Math.round(number).toString();
+
+        // get suffix and determine scale
+        const suffix = SI_SYMBOL[tier];
+        const scale = Math.pow(10, tier * 3);
+
+        // scale the number
+        const scaled = number / scale;
+
+        // format number and add suffix
+        return scaled.toFixed(1) + suffix;
+    }
+
+    var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+
+    var graphql = JSON.stringify({
+        query: "query Proposals {\n      proposals(\n        first: 50,\n        skip: 0,\n        where: {\n          space: \"lido-snapshot.eth\"\n          state: \"active\"\n        },\n        orderBy: \"end\",\n        orderDirection: asc\n      ) {\n        title\n        choices\n        scores\n      }\n    }",
+        variables: {}
+    })
+    var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: graphql,
+        redirect: 'follow'
+    };
+
+    fetch("https://hub.snapshot.org/graphql", requestOptions)
+        .then(response => response.text())
+        .then(result => fillTable(JSON.parse(result)))
+        .catch(error => console.log('error', error));
+</script>
+
+</html>
